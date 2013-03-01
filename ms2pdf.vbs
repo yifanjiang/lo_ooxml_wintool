@@ -13,18 +13,27 @@
 ' Modified by Yifan Jiang 2013.02.27
 ' To print out Powerpoint and Excel documents as well.
 ' Usage:
-'   cscript /nologo "ms2pdf.vbs" /nologo $msoffice_file_name [/o:<pdf-file>]
+'   cscript /nologo "ms2pdf.vbs" /nologo $msoffice_file_name [/o:<output-folder>]
 
 ' Constants
 Const WdDoNotSaveChanges = 0
 ' see WdSaveFormat enumeration constants: 
 ' http://msdn2.microsoft.com/en-us/library/bb238158.aspx
-Const wdFormatPDF = 17  ' Word PDF format.
-Const wdFormatXPS = 18  ' Word XPS format
-Const ppSaveAsPDF = 32  ' Powerpoint PDF format.
-Const ppSaveAsXPS = 33  ' Powerpoint XPS format
-Const xlTypePDF = 0     ' Excel PDF format
-Const xlTypeXPS = 1     ' Excel SPS format
+
+Const wdFormatPDF = 17                  ' Word PDF format
+Const wdFormatXPS = 18                  ' Word XPS format
+Const wdFormatDocument97 = 0            ' Word DOC format
+Const wdFormatDocumentDefault = 16      ' Word DOCX format
+
+Const ppSaveAsPDF = 32                  ' Powerpoint PDF format
+Const ppSaveAsXPS = 33                  ' Powerpoint XPS format
+Const ppSaveAsPresentation = 1          ' Powerpoint PPT format
+Const ppSaveAsOpenXMLPresentation = 24  ' Powerpoint PPTX format
+
+Const xlTypePDF = 0                     ' Excel PDF format
+Const xlTypeXPS = 1                     ' Excel XPS format
+Const xlExcel8 = 56                     ' Excel XLS format (MSO97-03)
+Const xlOpenXMLWorkbook = 51            ' Excel XLSX format
 
 ' Global variables
 Dim arguments
@@ -105,7 +114,7 @@ End Function
 Dim fso ' As FileSystemObject
 Set fso = CreateObject("Scripting.FileSystemObject")
 
-Function DOC2PDF( sDocFile, sFolder )
+Function DOC2PDF( sSrcFile, sFolder )
 
   Dim wdo ' As Word.Application
   Dim wdoc ' As Word.Document
@@ -115,34 +124,39 @@ Function DOC2PDF( sDocFile, sFolder )
   Set wdo = CreateObject("Word.Application")
   Set wdocs = wdo.Documents
 
-  sDocFile = fso.GetAbsolutePathName(sDocFile)
+  wdo.Visible = False
+
+  sSrcFile = fso.GetAbsolutePathName(sSrcFile)
   sFolder = fso.GetAbsolutePathName(sFolder)
 
   If Len(sFolder)=0 Then
 
-    sFolder = fso.GetParentFolderName(sDocFile)
+    sFolder = fso.GetParentFolderName(sSrcFile)
 
   End If
 
-  sPDFFile = sFolder + "\" + fso.GetFileName(sDocFile) + ".pdf"
+  sPDFFile = sFolder + "\testrefs\" + fso.GetFileName(sSrcFile) + ".pdf"
+  sDOCFile = sFolder + "\testdocs\" + fso.GetBaseName(sSrcFile) + ".doc"
+  sDOCXFile = sFolder + "\testdocs\" + fso.GetBaseName(sSrcFile) + ".docx"
 
   ' Enable this line if you want to disable autoexecute macros
   ' wdo.WordBasic.DisableAutoMacros
 
   ' Open the Word document
-  Set wdoc = wdocs.Open(sDocFile)
+  Set wdoc = wdocs.Open(sSrcFile)
 
   ' ' Debug outputs...
 
     ' WScript.Echo "Doc file = '" + sDocFile + "'"
     ' WScript.Echo "PDF file = '" + sPDFFile + "'"
 
-
-
   ' Let Word document save as PDF
   ' - for documentation of SaveAs() method,
-  '   see http://msdn2.microsoft.com/en-us/library/bb221597.aspx 
+  '   see http://msdn2.microsoft.com/en-us/library/bb221597.aspx
+
   wdoc.SaveAs sPDFFile, wdFormatPDF
+  wdoc.SaveAs sDOCFile, wdFormatDocument97
+  wdoc.SaveAs sDOCXFile, wdFormatDocumentDefault
 
   wdoc.Close WdDoNotSaveChanges
   wdo.Quit WdDoNotSaveChanges
@@ -152,7 +166,7 @@ Function DOC2PDF( sDocFile, sFolder )
 
 End Function
 
-Function PPT2PDF( sDocFile, sFolder )
+Function PPT2PDF( sSrcFile, sFolder )
 
   Dim wdo ' As Word.Application
   Dim wdoc ' As Word.Document
@@ -162,27 +176,31 @@ Function PPT2PDF( sDocFile, sFolder )
   Set wdo = CreateObject("Powerpoint.Application")
   Set wdocs = wdo.Presentations
 
-  sDocFile = fso.GetAbsolutePathName(sDocFile)
+  sSrcFile = fso.GetAbsolutePathName(sSrcFile)
   sFolder = fso.GetAbsolutePathName(sFolder)
 
   If Len(sFolder)=0 Then
 
-    sFolder = fso.GetParentFolderName(sDocFile)
+    sFolder = fso.GetParentFolderName(sSrcFile)
 
   End If
 
-  sPDFFile = sFolder + "\" + fso.GetFileName(sDocFile) + ".pdf"
+  sPDFFile = sFolder + "\testrefs\" + fso.GetFileName(sSrcFile) + ".pdf"
+  sPPTFile = sFolder + "\testdocs\" + fso.GetBaseName(sSrcFile) + ".ppt"
+  sPPTXFile = sFolder + "\testdocs\" + fso.GetBaseName(sSrcFile) + ".pptx"
 
   ' Enable this line if you want to disable autoexecute macros
   ' wdo.WordBasic.DisableAutoMacros
 
   ' Open the Word document
-  Set wdoc = wdocs.Open(sDocFile)
+  Set wdoc = wdocs.Open(sSrcFile,,,msoFalse)
 
   ' Let Word document save as PDF
   ' - for documentation of SaveAs() method,
   '   see http://msdn2.microsoft.com/en-us/library/bb221597.aspx 
   wdoc.SaveAs sPDFFile, ppSaveAsPDF
+  wdoc.SaveAs sPPTFile, ppSaveAsPresentation
+  wdoc.SaveAs sPPTXFile, ppSaveAsOpenXMLPresentation
 
   wdoc.Close
   wdo.Quit
@@ -192,7 +210,7 @@ Function PPT2PDF( sDocFile, sFolder )
 
 End Function
 
-Function XLS2PDF( sDocFile, sFolder )
+Function XLS2PDF( sSrcFile, sFolder )
 
   Dim wdo ' As Word.Application
   Dim wdoc ' As Word.Document
@@ -202,25 +220,29 @@ Function XLS2PDF( sDocFile, sFolder )
   Set wdo = CreateObject("Excel.Application")
   Set wdocs = wdo.Workbooks
 
-  sDocFile = fso.GetAbsolutePathName(sDocFile)
+  wdo.Visible = False
+
+  sSrcFile = fso.GetAbsolutePathName(sSrcFile)
   sFolder = fso.GetAbsolutePathName(sFolder)
 
   If Len(sFolder)=0 Then
 
-    sFolder = fso.GetParentFolderName(sDocFile)
+    sFolder = fso.GetParentFolderName(sSrcFile)
 
   End If
 
-  sPDFFile = sFolder + "\" + fso.GetFileName(sDocFile) + ".pdf"
+  sPDFFile = sFolder + "\testrefs\" + fso.GetFileName(sSrcFile) + ".pdf"
+  sXLSFile = sFolder + "\testdocs\" + fso.GetBaseName(sSrcFile) + ".xls"
+  sXLSXFile = sFolder + "\testdocs\" + fso.GetBaseName(sSrcFile) + ".xlsx"
 
   ' ' Debug outputs...
   ' If bShowDebug Then
-  '   WScript.Echo "Doc file = '" + sDocFile + "'"
+  '   WScript.Echo "Doc file = '" + sSrcFile + "'"
   '   WScript.Echo "PDF file = '" + sPDFFile + "'"
   ' End If
 
   ' If Len(sPDFFile)=0 Then
-  '   sPDFFile = fso.GetFileName(sDocFile) + ".pdf"
+  '   sPDFFile = fso.GetFileName(sSrcFile) + ".pdf"
   ' End If
 
   ' If Len(fso.GetParentFolderName(sPDFFile))=0 Then
@@ -230,17 +252,21 @@ Function XLS2PDF( sDocFile, sFolder )
   ' Enable this line if you want to disable autoexecute macros
   ' wdo.WordBasic.DisableAutoMacros
 
-  ' Open the Word document
-  Set wdoc = wdocs.Open(sDocFile)
+  ' Open the Excel document
+  Set wdoc = wdocs.Open(sSrcFile)
 
   ' Let Word document save as PDF
   ' - for documentation of SaveAs() method,
   '   see http://msdn2.microsoft.com/en-us/library/bb221597.aspx 
-  ' wdoc.SaveAs sPDFFile, wdFormatPDF
 
   wdoc.ExportAsFixedFormat xlTypePDF, sPDFFile
 
-' wdoc.ExportAsFixedFormat Type:=xlTypePDF, Filename:=sPDFFile, Quality:=xlQualityStandard
+  wdoc.SaveAs sXLSFile, xlExcel8
+  wdoc.SaveAs sXLSXFile, xlOpenXMLWorkbook
+
+  wdoc.SaveAs sXLSXFile, xlOpenXMLWorkbook
+  wdoc.SaveAs sXLSFile, xlExcel8
+
 
   wdoc.Close
   wdo.Quit
